@@ -1,18 +1,37 @@
 import os
 import io
+import pickle
+from pathlib import Path
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
-SCOPES = ['https://www.googleapis.com/auth/drive']
-CREDENTIALS_PATH = os.getenv('GOOGLE_CREDENTIALS_PATH', 'C:/Users/wenxi.lee/seo-credentials.json')
+SCOPES = [
+    'https://www.googleapis.com/auth/drive',
+]
+CLIENT_SECRETS = 'C:/Users/wenxi.lee/oauth-client.json'
+TOKEN_FILE = str(Path(__file__).parent / 'drive-token.pickle')
 FOLDER_NAME = 'Blog Post Material'
 
+
 def get_drive_service():
-    creds = service_account.Credentials.from_service_account_file(
-        CREDENTIALS_PATH, scopes=SCOPES
-    )
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as f:
+            creds = pickle.load(f)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, 'wb') as f:
+            pickle.dump(creds, f)
+
     return build('drive', 'v3', credentials=creds)
+
 
 def find_folder(service, name):
     results = service.files().list(
@@ -21,6 +40,7 @@ def find_folder(service, name):
     ).execute()
     files = results.get('files', [])
     return files[0]['id'] if files else None
+
 
 def upload_blog(title, content, faq_schema):
     service = get_drive_service()
@@ -52,3 +72,13 @@ def upload_blog(title, content, faq_schema):
     ).execute()
 
     return file.get('webViewLink'), file.get('name')
+
+
+if __name__ == '__main__':
+    service = get_drive_service()
+    folder_id = find_folder(service, FOLDER_NAME)
+    if folder_id:
+        print(f"[OK] Connected to your Google Drive")
+        print(f"[OK] Found folder: '{FOLDER_NAME}' (ID: {folder_id})")
+    else:
+        print(f"[ERROR] Folder '{FOLDER_NAME}' not found in your Drive")
