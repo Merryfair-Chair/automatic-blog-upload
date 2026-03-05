@@ -12,3 +12,7 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Blog output files (local only)
+output/*.md
+output/done/
