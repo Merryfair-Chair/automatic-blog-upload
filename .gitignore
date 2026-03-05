@@ -1,0 +1,14 @@
+# Credentials - never commit these
+.env
+*credentials*.json
+*token*.pickle
+*client*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
