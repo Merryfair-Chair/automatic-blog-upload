@@ -10,7 +10,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
-CLIENT_SECRETS = 'C:/Users/wenxi.lee/oauth-client.json'
+CLIENT_SECRETS = str(Path.home() / 'oauth-client.json')
 TOKEN_FILE = str(Path(__file__).parent / 'drive-token.pickle')
 FOLDER_NAME = 'Blog Post Material'
 

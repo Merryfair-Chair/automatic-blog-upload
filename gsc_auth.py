@@ -1,12 +1,13 @@
 import os
 import pickle
+from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
-CLIENT_SECRETS = 'C:/Users/wenxi.lee/oauth-client.json'
-TOKEN_FILE = 'C:/Users/wenxi.lee/seo-automation/gsc-token.pickle'
+CLIENT_SECRETS = str(Path.home() / 'oauth-client.json')
+TOKEN_FILE = str(Path(__file__).parent / 'gsc-token.pickle')
 
 def get_gsc_service():
     creds = None
