@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 import time
 import shutil
 from pathlib import Path
@@ -8,21 +7,22 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 from wp_publisher import publish_draft
-from drive_uploader import upload_blog
+from onedrive_saver import upload_blog   # Word copy in OneDrive (Google Drive was shut off 2026-09-28)
 
-OUTPUT_DIR = Path(__file__).parent / "output"
-DONE_DIR   = OUTPUT_DIR / "done"
+OUTPUT_DIR   = Path(__file__).parent / "output"
+DONE_DIR     = OUTPUT_DIR / "done"
+FAILED_DIR   = OUTPUT_DIR / "failed"
 
 
 def watch_for_file(seen):
-    """Watch for a new .md file and return it when found."""
+    """Watch for new .md files and return the oldest unprocessed one."""
     current = set(OUTPUT_DIR.glob("*.md"))
     new_files = current - seen
     if new_files:
-        md_file = sorted(new_files, key=lambda f: f.stat().st_mtime)[-1]
+        md_file = sorted(new_files, key=lambda f: f.stat().st_mtime)[0]
         log(f"Detected: {md_file.name}")
         time.sleep(1)
-        return md_file, current
+        return md_file, seen | {md_file}
     return None, current
 
 
@@ -109,6 +109,7 @@ def parse_response(text):
 
 def move_to_done(file_path, slug):
     """Move processed file to output/done/ renamed to slug."""
+    DONE_DIR.mkdir(parents=True, exist_ok=True)
     safe_slug = re.sub(r'[<>:"/\\|?*\n\r]', '-', slug)[:80]
     dest = DONE_DIR / f"{safe_slug}.md"
     if dest.exists():
@@ -130,21 +131,25 @@ def process(md_file):
         p = parse_response(text)
     except ValueError as e:
         log(f"ERROR: {e}")
+        FAILED_DIR.mkdir(parents=True, exist_ok=True)
+        dest = FAILED_DIR / md_file.name
+        shutil.move(str(md_file), str(dest))
+        log(f"Moved to failed: {dest.name}")
         return
 
     log(f"Title:  {p['title']}")
     log(f"Slug:   {p['slug']}")
     log(f"FAQ schema: {'Found' if p['faq_schema'] else 'Not found'}")
 
-    # Google Drive
+    # OneDrive (marketing@) — Word copy of the draft
     drive_link = None
-    log("Saving to Google Drive...")
+    log("Saving Word copy to OneDrive...")
     try:
         drive_link, fname = upload_blog(p["title"], p["full_draft"], p["faq_schema"])
         log(f"Saved: {fname}")
-        log(f"Drive: {drive_link}")
+        log(f"OneDrive: {drive_link}")
     except Exception as e:
-        log(f"WARN: Drive upload failed: {e}")
+        log(f"WARN: OneDrive copy not saved: {e}")
 
     # WordPress
     edit_url = ""
@@ -156,7 +161,10 @@ def process(md_file):
         log(f"ERROR: WordPress publish failed: {e}")
 
     # Move to done
-    move_to_done(md_file, p["slug"])
+    try:
+        move_to_done(md_file, p["slug"])
+    except Exception as e:
+        log(f"WARN: Could not move file to done: {e}")
 
     # Summary
     print("\n" + "=" * 60)
@@ -164,7 +172,7 @@ def process(md_file):
     print("=" * 60)
     print(f"  Title:    {p['title']}")
     if drive_link:
-        print(f"  Drive:    {drive_link}")
+        print(f"  OneDrive: {drive_link}")
     if edit_url:
         print(f"  WP Draft: {edit_url}")
     print("\n  NEXT STEPS (manual):")

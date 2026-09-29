@@ -77,7 +77,8 @@ def publish_draft(title, slug, markdown_content):
     r = requests.post(
         f"{WP_URL}/wp-json/wp/v2/{BLOG_POST_TYPE}",
         headers=get_headers(),
-        json=post_data
+        json=post_data,
+        timeout=30
     )
 
     if r.status_code not in (200, 201):

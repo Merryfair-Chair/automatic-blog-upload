@@ -16,3 +16,7 @@ Thumbs.db
 # Blog output files (local only)
 output/*.md
 output/done/
+output/failed/
+
+# Run logs (local only)
+logs/
