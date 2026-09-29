@@ -58,6 +58,19 @@ def _finder_folder(scope_line):
     return None
 
 
+def _finder_folder_by_name(sync_root):
+    """
+    The same folder found by its name: 'OneDrive - Company Name' is shown in Finder as
+    'OneDrive-CompanyName'. Needed when this runs as a background program: macOS then does not
+    let it look inside OneDrive folders (so the sync id cannot be read), only add new files.
+    """
+    name = Path(sync_root).name
+    if not name.startswith("OneDrive"):
+        return None
+    folder = Path.home() / "Library/CloudStorage" / name.replace(" ", "")
+    return folder if folder.is_dir() else None
+
+
 def onedrive_accounts():
     """{account web address: local synced folder} for accounts the OneDrive app is syncing."""
     settings = Path.home() / "Library/Application Support/OneDrive/settings"
@@ -82,6 +95,7 @@ def onedrive_accounts():
             if local.startswith("$Group.Container$"):
                 rel = local[len("$Group.Container$"):].lstrip("/")
                 local = next((str(c / rel) for c in containers if (c / rel).is_dir()), "")
+                local = str(_finder_folder_by_name(local) or local) if local else ""
             if local and Path(local).is_dir():
                 found[url.rstrip("/")] = Path(local)
     return found
@@ -340,7 +354,13 @@ def upload_blog(title, content, faq_schema):
     while path.exists():                       # never overwrite an earlier draft
         path = folder / f"{safe_title} ({n}).docx"
         n += 1
-    markdown_to_docx(title, content, faq_schema).save(str(path))
+    try:
+        markdown_to_docx(title, content, faq_schema).save(str(path))
+    except PermissionError:
+        raise RuntimeError(
+            "macOS is not letting this background program into the OneDrive folder. In System Settings → "
+            "Privacy & Security, give Python access to OneDrive files, then restart the pipeline."
+        )
     link = f"{web}/{quote(path.name)}?web=1" if web else str(path)
     return link, path.name
 
