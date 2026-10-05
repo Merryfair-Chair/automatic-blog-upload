@@ -28,7 +28,11 @@ def apply_link_rules(tag):
     href = tag.get('href', '')
     if not href or href.startswith('#'):
         return
-    if 'INTERNAL LINK' in href:
+    # Unresolved internal links from the blog prompt. Current format is
+    # INTERNAL_LINK:slug (underscore); the old format was "INTERNAL LINK → …".
+    # Matching only the old format let INTERNAL_LINK: hrefs through as live
+    # nofollow links (found on neck-pain-from-sitting, 2026-09-30).
+    if 'INTERNAL_LINK' in href or 'INTERNAL LINK' in href:
         tag['href'] = '#'
         tag['data-link-note'] = href
         tag['target'] = '_blank'
@@ -87,3 +91,8 @@ def publish_draft(title, slug, markdown_content):
     post = r.json()
     post_id = post.get('id')
     return post_id, post.get('link'), f"{WP_URL}/wp-admin/post.php?post={post_id}&action=edit"
+
+
+def unresolved_links(markdown_text):
+    """Anchor + placeholder for every unresolved internal link in the draft."""
+    return re.findall(r'\[([^\]]+)\]\(\s*(INTERNAL[_ ]LINK[^)]*)\)', markdown_text)

@@ -6,7 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
-from wp_publisher import publish_draft
+from wp_publisher import publish_draft, unresolved_links
 from onedrive_saver import upload_blog   # Word copy in OneDrive (Google Drive was shut off 2026-09-28)
 
 OUTPUT_DIR   = Path(__file__).parent / "output"
@@ -157,6 +157,12 @@ def process(md_file):
     try:
         post_id, _, edit_url = publish_draft(p["title"], p["slug"], p["full_draft"])
         log(f"Draft created: {edit_url}")
+        pending = unresolved_links(p["full_draft"])
+        if pending:
+            log(f"WARN: {len(pending)} unresolved internal link(s) - set to '#' in the draft; "
+                "give each a real URL in WordPress before publishing:")
+            for anchor, placeholder in pending:
+                log(f"  - \"{anchor}\" -> {placeholder}")
     except Exception as e:
         log(f"ERROR: WordPress publish failed: {e}")
 
