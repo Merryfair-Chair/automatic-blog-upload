@@ -95,6 +95,10 @@ def parse_response(text):
 
     fm = re.search(r'(<script type="application/ld\+json">.*?</script>)', faq_s, re.DOTALL)
 
+    # Primary keyword from [1] POST METADATA — names the post's OneDrive folder
+    km = re.search(r'^\s*Primary keyword:\s*(.+?)\s*$', text, re.MULTILINE | re.IGNORECASE)
+    keyword = km.group(1).strip().strip('*`"').strip() if km else ""
+
     if not title:
         raise ValueError("Could not parse Title from output. Make sure you copied the full Phase 5 output.")
 
@@ -104,6 +108,7 @@ def parse_response(text):
         "slug":             slug,
         "full_draft":       draft,
         "faq_schema":       fm.group(1) if fm else "",
+        "keyword":          keyword,
     }
 
 
@@ -145,7 +150,8 @@ def process(md_file):
     drive_link = None
     log("Saving Word copy to OneDrive...")
     try:
-        drive_link, fname = upload_blog(p["title"], p["full_draft"], p["faq_schema"])
+        drive_link, fname = upload_blog(p["title"], p["full_draft"], p["faq_schema"],
+                                        subfolder=p["keyword"] or None)
         log(f"Saved: {fname}")
         log(f"OneDrive: {drive_link}")
     except Exception as e:

@@ -346,9 +346,21 @@ def markdown_to_docx(title, markdown_text, faq_schema):
 
 # ───────────────────────── public API ─────────────────────────
 
-def upload_blog(title, content, faq_schema):
+def _safe_name(name):
+    return re.sub(r'[<>:"/\\|?*\n\r]', '-', name).strip().rstrip(".")
+
+
+def upload_blog(title, content, faq_schema, subfolder=None):
+    """subfolder: one folder per post inside Blog Post Material, named after its primary keyword."""
     folder, web = target_folder()
-    safe_title = re.sub(r'[<>:"/\\|?*]', '-', title).strip().rstrip(".")
+    if subfolder and _safe_name(subfolder):
+        sub = _safe_name(subfolder)
+        try:
+            (folder / sub).mkdir(exist_ok=True)   # allowed for the background program; listing is not
+            folder, web = folder / sub, (f"{web}/{quote(sub)}" if web else None)
+        except OSError:
+            pass                                  # fall back to the main folder rather than lose the copy
+    safe_title = _safe_name(title)
     path = folder / f"{safe_title}.docx"
     n = 2
     while path.exists():                       # never overwrite an earlier draft
